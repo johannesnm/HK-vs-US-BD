@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 class TradingSimulator:
-    """A Trading simulator to evaluate the trading performance of models."""
+    """A Trading simulator to evaluate the arbitrage trading performance between HK and US markets."""
 
     def __init__(self, initial_cash=100000, transaction_fee=0.001):
         self.initial_cash = initial_cash
@@ -18,53 +18,57 @@ class TradingSimulator:
         self.trade_log = []
         self.avg_buy_price = 0
 
-    def buy(self, price, quantity):
-        total_cost = price * quantity * (1 + self.transaction_fee)
+    def buy(self, hk_close_price):
+        quantity = 100  # Fixed number of shares to buy
+        total_cost = hk_close_price * quantity * (1 + self.transaction_fee)
+
         if self.cash >= total_cost:
-            # Update average buy price if already holding positions
+            # Update the average buy price if already holding positions
             if self.position > 0:
-                self.avg_buy_price = ((self.avg_buy_price * self.position) + (price * quantity)) / (self.position + quantity)
+                self.avg_buy_price = ((self.avg_buy_price * self.position) + (hk_close_price * quantity)) / (self.position + quantity)
             else:
-                self.avg_buy_price = price
+                self.avg_buy_price = hk_close_price
 
             self.cash -= total_cost
             self.position += quantity
-            self.trade_log.append(('BUY', price, quantity, 0, self.get_portfolio_value(price)))
+            self.trade_log.append(('BUY', hk_close_price, quantity, 0, self.get_portfolio_value(hk_close_price)))
         else:
             print(f"BUY FAILED: Not enough cash (Available: {self.cash:.2f}, Needed: {total_cost:.2f})")
 
-    def sell(self, price, quantity):
+    def sell(self, us_open_price):
+        quantity = 100  # Fixed number of shares to sell
+
         if self.position >= quantity:
-            total_revenue = price * quantity * (1 - self.transaction_fee)
-            # Calculate profit or loss based on avg buy price
-            profit_loss = (price - self.avg_buy_price) * quantity - (price * quantity * self.transaction_fee)
+            total_revenue = us_open_price * quantity * (1 - self.transaction_fee)
+            # Calculate profit or loss based on average buy price
+            profit_loss = (us_open_price - self.avg_buy_price) * quantity - (us_open_price * quantity * self.transaction_fee)
 
             self.cash += total_revenue
             self.position -= quantity
-            self.trade_log.append(('SELL', price, quantity, profit_loss, self.get_portfolio_value(price)))
+            self.trade_log.append(('SELL', us_open_price, quantity, profit_loss, self.get_portfolio_value(us_open_price)))
 
             # Reset average price if all positions are sold
             if self.position == 0:
                 self.avg_buy_price = 0
         else:
-            print(f"SELL FAILED: No position to sell (Current Position: {self.position})")
+            print(f"SELL FAILED: Not enough position to sell (Current Position: {self.position})")
 
-    def run(self, df, signal_column='signal', price_column='US_Close'):
-        skipped_sell_count = 0
+    def run(self, df, hk_close_column='HK_Close', us_open_column='US_Open', signal_column='signal'):
+        """
+        Run the simulator on the given DataFrame using the provided signals.
+        
+        The buy action will occur on the HK close price, and the corresponding sell action will occur
+        at the US open price.
+        """
         for index, row in df.iterrows():
             signal = row[signal_column]
-            price = row[price_column]
+            hk_close_price = row[hk_close_column]
+            us_open_price = row[us_open_column]
 
             if signal == 1:  # Buy signal
-                self.buy(price, 10)  # Buy 10 units arbitrarily
-            elif signal == -1:  # Sell signal
-                if self.position > 0:
-                    self.sell(price, 10)
-                else:
-                    skipped_sell_count += 1
-
-        if skipped_sell_count > 0:
-            print(f"Skipped {skipped_sell_count} sell signals due to insufficient positions.")
+                self.buy(hk_close_price)  # Buy at HK close price
+            elif signal == -1 and self.position > 0:  # Sell signal and we hold position
+                self.sell(us_open_price)  # Sell at US open price
 
     def get_portfolio_value(self, current_price):
         return self.cash + (self.position * current_price)
@@ -110,6 +114,28 @@ class TradingSimulator:
         plt.legend()
         plt.grid()
         plt.show()
+
+    def calculate_metrics(self):
+        """Calculates various metrics to evaluate the model performance."""
+        trade_log_df = self.get_trade_log()
+        if trade_log_df.empty:
+            print("No trades executed. No metrics available.")
+            return
+
+        # Filter only SELL actions to evaluate win and loss trades
+        sell_trades = trade_log_df[trade_log_df['Action'] == 'SELL']
+
+        total_profit = sell_trades['Profit/Loss'].sum()
+        total_trades = len(sell_trades)
+        win_trades = len(sell_trades[sell_trades['Profit/Loss'] > 0])
+        loss_trades = len(sell_trades[sell_trades['Profit/Loss'] < 0])
+        win_rate = win_trades / total_trades if total_trades > 0 else 0
+
+        print("\n=== Performance Metrics ===")
+        print(f"Total Profit: {total_profit:.2f}")
+        print(f"Total Trades: {total_trades}")
+        print(f"Win Rate: {win_rate:.2%}")
+        print("----------------------------\n")
 
     def summary(self, final_price):
         """Prints a summary of the trading performance."""
