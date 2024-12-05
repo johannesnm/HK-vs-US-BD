@@ -155,3 +155,5 @@ class TradingSimulator:
         print(f"Portfolio Growth: {portfolio_growth:.2f}%")
         print(f"Total Buys: {total_buys}, Total Sells: {total_sells}")
         print("-----------------------------------\n")
+
+    
