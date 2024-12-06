@@ -20,23 +20,33 @@ def fetch_and_save_stock_data(us_ticker='BABA', hk_ticker='9988.HK', start_date=
     # Combine the features into the DataFrame
     df = pd.DataFrame(index=us_data.index)
     df['US_Open'] = us_data['Open']
-    df['US_Close'] = us_data['Close']
+    
+    # Include only past information for prediction to avoid data leakage
+    df['US_Close_prev'] = us_data['Close'].shift(1)
+    df['US_High_prev'] = us_data['High'].shift(1)
+    df['US_Low_prev'] = us_data['Low'].shift(1)
+    df['US_range_prev'] = df['US_High_prev'] - df['US_Low_prev']
+    
     df['HK_Close'] = hk_data['Close'] * 8 / 7.8
-    df['HK_Open_next'] = hk_data['Open'].shift(-1) * 8 / 7.8
-    df['VIX'] = vix
-    df['SP500'] = sp500
-    df['HSI'] = hsi
+    df['HK_Open_prev'] = hk_data['Open'].shift(1) * 8 / 7.8
+    df['HK_High_prev'] = hk_data['High'].shift(1) * 8 / 7.8
+    df['HK_Low_prev'] = hk_data['Low'].shift(1) * 8 / 7.8
+    df['HK_range_prev'] = df['HK_High_prev'] - df['HK_Low_prev']
 
-    # Adding Volume Data for both US and HK
-    df['US_Volume'] = us_data['Volume']
-    df['HK_Volume'] = hk_data['Volume']
+    df['VIX'] = vix.shift(1)
+    df['SP500'] = sp500.shift(1)
+    df['HSI'] = hsi.shift(1)
+
+    # Adding Volume Data for both US and HK (previous day volume)
+    df['US_Volume_prev'] = us_data['Volume'].shift(1)
+    df['HK_Volume_prev'] = hk_data['Volume'].shift(1)
 
     # Adding US 10-Year Treasury Yield and Forward Fill Missing Data
     treasury_yield = yf.download('^TNX', start=start_date, end=end_date)['Close']
-    df['Treasury_Yield'] = treasury_yield
+    df['Treasury_Yield'] = treasury_yield.shift(1)
 
     # Adding Moving Averages (20-day) for both US and HK
-    df['US_MA20'] = df['US_Close'].rolling(window=20).mean()
+    df['US_MA20'] = df['US_Close_prev'].rolling(window=20).mean()
     df['HK_MA20'] = df['HK_Close'].rolling(window=20).mean()
 
     # Adding Relative Strength Index (RSI) for US Close Prices
@@ -49,10 +59,10 @@ def fetch_and_save_stock_data(us_ticker='BABA', hk_ticker='9988.HK', start_date=
         rs = avg_gain / avg_loss
         return 100 - (100 / (1 + rs))
 
-    df['RSI_US'] = calculate_rsi(df['US_Close'])
+    df['RSI_US'] = calculate_rsi(df['US_Close_prev'])
 
     # Adding Price Ratio (US to HK Close Prices)
-    df['US_HK_Ratio'] = df['US_Close'] / df['HK_Close']
+    df['US_HK_Ratio'] = df['US_Close_prev'] / df['HK_Close']
 
     # The values missing are likely due to holidays. Therefore, we fill in these values with the last known value they had.
     df.fillna(method='ffill', inplace=True)
