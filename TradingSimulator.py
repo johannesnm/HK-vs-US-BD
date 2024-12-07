@@ -33,7 +33,8 @@ class TradingSimulator:
             self.position += quantity
             self.trade_log.append(('BUY', hk_close_price, quantity, 0, self.get_portfolio_value(hk_close_price)))
         else:
-            print(f"BUY FAILED: Not enough cash (Available: {self.cash:.2f}, Needed: {total_cost:.2f})")
+            pass
+            #print(f"BUY FAILED: Not enough cash (Available: {self.cash:.2f}, Needed: {total_cost:.2f})")
 
     def sell(self, us_open_price):
         quantity = 100  # Fixed number of shares to sell
@@ -60,6 +61,7 @@ class TradingSimulator:
         The buy action will occur on the HK close price, and the corresponding sell action will occur
         at the US open price.
         """
+
         for index, row in df.iterrows():
             signal = row[signal_column]
             hk_close_price = row[hk_close_column]
