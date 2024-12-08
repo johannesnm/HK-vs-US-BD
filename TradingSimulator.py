@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 class TradingSimulator:
-    """A Trading simulator to evaluate the arbitrage trading performance between HK and US markets."""
+    """A Trading simulator to evaluate the arbitrage trading performance between HK and US markets. (Explained in methods section)"""
 
     def __init__(self, initial_cash=100000, transaction_fee=0.001):
         self.initial_cash = initial_cash
@@ -34,7 +34,7 @@ class TradingSimulator:
             self.trade_log.append(('BUY', hk_close_price, quantity, 0, self.get_portfolio_value(hk_close_price)))
         else:
             pass
-            #print(f"BUY FAILED: Not enough cash (Available: {self.cash:.2f}, Needed: {total_cost:.2f})")
+            
 
     def sell(self, us_open_price):
         quantity = 100  # Fixed number of shares to sell
