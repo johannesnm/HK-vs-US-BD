@@ -54,23 +54,23 @@ class TradingSimulator:
         else:
             print(f"SELL FAILED: Not enough position to sell (Current Position: {self.position})")
 
-    def run(self, df, hk_close_column='HK_Close', us_open_column='US_Open', signal_column='signal'):
-        """
-        Run the simulator on the given DataFrame using the provided signals.
-        
-        The buy action will occur on the HK close price, and the corresponding sell action will occur
-        at the US open price.
-        """
+    def run(self, df, hk_close_column='HK_Close', us_open_column='US_Open', signal_column='signal', instant_sell=False):
+            """
+            Run the simulator on the given DataFrame using the provided signals.
+            
+            If instant_sell is enabled, sell immediately at the US open price after buying.
+            """
+            for index, row in df.iterrows():
+                signal = row[signal_column]
+                hk_close_price = row[hk_close_column]
+                us_open_price = row[us_open_column]
 
-        for index, row in df.iterrows():
-            signal = row[signal_column]
-            hk_close_price = row[hk_close_column]
-            us_open_price = row[us_open_column]
-
-            if signal == 1:  # Buy signal
-                self.buy(hk_close_price)  # Buy at HK close price
-            elif signal == -1 and self.position > 0:  # Sell signal and we hold position
-                self.sell(us_open_price)  # Sell at US open price
+                if signal == 1:  # Buy signal
+                    self.buy(hk_close_price)  # Buy at HK close price
+                    if instant_sell and self.position > 0:  # Instant sell at US open price
+                        self.sell(us_open_price)
+                elif signal == -1 and self.position > 0:  # Sell signal and we hold position
+                    self.sell(us_open_price)  # Sell at US open price
 
     def get_portfolio_value(self, current_price):
         return self.cash + (self.position * current_price)
